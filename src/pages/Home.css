@@ -1,0 +1,21 @@
+.page {
+  background-color: white;
+  padding: 30px;
+  border-radius: 8px;
+}
+
+.home h1 {
+  color: #222;
+  margin-bottom: 15px;
+}
+
+.home p {
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.home-box {
+  background-color: #e8f7fa;
+  padding: 20px;
+  border-radius: 8px;
+}

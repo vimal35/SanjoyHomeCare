@@ -1,4 +1,3 @@
-// Blog.jsx
 import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -99,6 +98,7 @@ const AuthorIcon = () => (
 
 const Blog = () => {
   const blogRef = useRef(null);
+  const heroRef = useRef(null);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia(
@@ -108,64 +108,162 @@ const Blog = () => {
     if (reduceMotion) return;
 
     const ctx = gsap.context(() => {
-      gsap.from(".blog-hero-badge", {
-        y: 24,
-        opacity: 0,
-        duration: 0.75,
-        ease: "power3.out",
-      });
-
-      gsap.from(".blog-hero-title", {
-        y: 42,
-        opacity: 0,
-        duration: 0.9,
-        delay: 0.12,
-        ease: "power3.out",
-      });
-
-      gsap.from(".blog-hero-text", {
-        y: 32,
-        opacity: 0,
-        duration: 0.85,
-        delay: 0.22,
-        ease: "power3.out",
-      });
-
-      gsap.from(".blog-hero-stat", {
-        y: 28,
-        opacity: 0,
-        duration: 0.75,
-        stagger: 0.08,
-        delay: 0.35,
-        ease: "power3.out",
-      });
-
-      gsap.from(".blog-card", {
+      // Parallax Hero Elements - different speeds for depth
+      gsap.to(".parallax-bg", {
         scrollTrigger: {
-          trigger: ".blog-list",
-          start: "top 82%",
+          trigger: heroRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 1
         },
-        y: 48,
-        opacity: 0,
-        duration: 0.85,
-        stagger: 0.1,
-        ease: "power3.out",
+        y: 200,
+        scale: 1.1
       });
 
-      gsap.utils.toArray(".blog-card").forEach((card) => {
-        const image = card.querySelector(".blog-card-image img");
+      gsap.to(".blog-hero-badge", {
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 0.8
+        },
+        y: -50,
+        opacity: 0.3
+      });
 
+      gsap.to(".blog-hero-title", {
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 0.5
+        },
+        y: -100,
+        filter: "blur(5px)",
+        opacity: 0.5
+      });
+
+      gsap.to(".blog-hero-text", {
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 0.8
+        },
+        y: -80
+      });
+
+      gsap.to(".blog-hero-stats", {
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 0.6
+        },
+        y: -40,
+        scale: 0.95
+      });
+
+      // Parallax for each blog card with scrubbing
+      const cards = gsap.utils.toArray(".blog-card");
+      
+      cards.forEach((card, i) => {
+        const image = card.querySelector(".blog-card-image img");
+        const content = card.querySelector(".blog-card-content");
+        const number = card.querySelector(".blog-number");
+        
+        // Image parallax - moves slower than scroll
         gsap.to(image, {
-          yPercent: -8,
-          ease: "none",
           scrollTrigger: {
             trigger: card,
             start: "top bottom",
             end: "bottom top",
-            scrub: 0.8,
+            scrub: 1.5
           },
+          yPercent: -20,
+          scale: 1.15,
+          ease: "none"
+        });
+
+        // Card reveal with scrub
+        gsap.fromTo(card, 
+          { 
+            y: 100, 
+            opacity: 0.3,
+            rotateX: 5
+          },
+          {
+            scrollTrigger: {
+              trigger: card,
+              start: "top 85%",
+              end: "top 45%",
+              scrub: 0.5
+            },
+            y: 0,
+            opacity: 1,
+            rotateX: 0,
+            ease: "power2.out"
+          }
+        );
+
+        // Content slide in
+        gsap.fromTo(content,
+          { x: 50, opacity: 0 },
+          {
+            scrollTrigger: {
+              trigger: card,
+              start: "top 75%",
+              end: "top 55%",
+              scrub: 0.8
+            },
+            x: 0,
+            opacity: 1
+          }
+        );
+
+        // Number counter animation on scroll
+        gsap.fromTo(number,
+          { scale: 0.5, rotation: -10 },
+          {
+            scrollTrigger: {
+              trigger: card,
+              start: "top 70%",
+              end: "top 50%",
+              scrub: 0.5
+            },
+            scale: 1,
+            rotation: 0
+          }
+        );
+
+        // Floating category tag parallax
+        const category = card.querySelector(".blog-card-image span");
+        gsap.to(category, {
+          scrollTrigger: {
+            trigger: card,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 1
+          },
+          y: -30
         });
       });
+
+      // Section header parallax
+      gsap.fromTo(".blog-section-head", 
+        { y: 50, opacity: 0 },
+        {
+          scrollTrigger: {
+            trigger: ".blog-section",
+            start: "top 80%",
+            end: "top 60%",
+            scrub: 0.5
+          },
+          y: 0,
+          opacity: 1
+        }
+      );
+
     }, blogRef);
 
     return () => ctx.revert();
@@ -173,11 +271,17 @@ const Blog = () => {
 
   return (
     <main className="blog-page" ref={blogRef}>
-      <section className="blog-hero">
+      <section className="blog-hero" ref={heroRef}>
+        <div className="parallax-bg">
+          <div className="hero-glow hero-glow-1"></div>
+          <div className="hero-glow hero-glow-2"></div>
+          <div className="hero-grid-pattern"></div>
+        </div>
+        
         <div className="blog-container">
           <div className="blog-hero-content">
             <div className="blog-hero-badge">
-              <span></span>
+              <span className="pulse-dot"></span>
               Hospital Sector Knowledge Hub
             </div>
 
@@ -226,7 +330,7 @@ const Blog = () => {
                   rel="noreferrer"
                   aria-label={`Read more about ${blog.title}`}
                 >
-                  <img src={blog.image} alt={blog.title} />
+                  <img src={blog.image} alt={blog.title} loading="lazy" />
                   <span>{blog.category}</span>
                 </a>
 

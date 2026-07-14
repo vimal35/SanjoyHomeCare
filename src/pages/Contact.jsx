@@ -6,7 +6,7 @@ import './Contact.css';
 gsap.registerPlugin(ScrollTrigger);
 
 /* -------------------------------------------------------------------------
-   STATIC DATA — replace placeholder phone / email / addresses with real ones
+   STATIC DATA
 ------------------------------------------------------------------------- */
 const CLINICS = {
   pondicherry: {
@@ -83,8 +83,25 @@ const SOCIALS = [
 ];
 
 /* -------------------------------------------------------------------------
-   ECG PULSE DIVIDER — the page's signature motif.
-   Draws itself in as the divider scrolls through view (scrubbed by scroll).
+   Utility — split text into per-word / per-char spans for animation
+------------------------------------------------------------------------- */
+const splitText = (text, type = 'word') => {
+  if (type === 'char') {
+    return text.split('').map((ch, i) => (
+      <span key={i} className="split-char" aria-hidden="true">
+        {ch === ' ' ? '\u00A0' : ch}
+      </span>
+    ));
+  }
+  return text.split(' ').map((word, i) => (
+    <span key={i} className="split-word-outer" aria-hidden="true">
+      <span className="split-word">{word}</span>
+    </span>
+  ));
+};
+
+/* -------------------------------------------------------------------------
+   ECG PULSE DIVIDER
 ------------------------------------------------------------------------- */
 function PulseDivider() {
   const pathRef = useRef(null);
@@ -119,7 +136,57 @@ function PulseDivider() {
 }
 
 /* -------------------------------------------------------------------------
-   MODAL — spring pop-in / fade-out, used for both form confirmations
+   SCROLL PROGRESS BAR (fixed top)
+------------------------------------------------------------------------- */
+function ScrollProgress() {
+  const barRef = useRef(null);
+
+  useEffect(() => {
+    const t = gsap.to(barRef.current, {
+      scaleX: 1,
+      ease: 'none',
+      scrollTrigger: {
+        trigger: document.body,
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 0.2,
+      },
+    });
+    return () => t.kill();
+  }, []);
+
+  return <div className="scroll-progress" ref={barRef} aria-hidden="true" />;
+}
+
+/* -------------------------------------------------------------------------
+   ANIMATED COUNTER
+------------------------------------------------------------------------- */
+function Counter({ value, suffix = '', duration = 2 }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const obj = { val: 0 };
+    const tween = gsap.to(obj, {
+      val: value,
+      duration,
+      ease: 'power2.out',
+      scrollTrigger: {
+        trigger: ref.current,
+        start: 'top 90%',
+        toggleActions: 'play none none reverse',
+      },
+      onUpdate: () => {
+        if (ref.current) ref.current.textContent = Math.round(obj.val) + suffix;
+      },
+    });
+    return () => tween.kill();
+  }, [value, suffix, duration]);
+
+  return <strong ref={ref}>0{suffix}</strong>;
+}
+
+/* -------------------------------------------------------------------------
+   MODAL
 ------------------------------------------------------------------------- */
 function ConfirmModal({ open, onClose, title, message }) {
   const overlayRef = useRef(null);
@@ -182,58 +249,418 @@ function ConfirmModal({ open, onClose, title, message }) {
 export default function ContactUs() {
   const rootRef = useRef(null);
   const heroRef = useRef(null);
+  const cursorRef = useRef(null);
 
   const [activeLocation, setActiveLocation] = useState('pondicherry');
-
   const [form, setForm] = useState({ name: '', mobile: '', location: '', problem: '' });
   const [errors, setErrors] = useState({});
   const [modal, setModal] = useState({ open: false, title: '', message: '' });
-
   const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  /* ---------------------- hero load-in + scroll reveals (GSAP) --------- */
+  /* ---------------------- Custom Cursor Trail ------------------------- */
+  useEffect(() => {
+    const cursor = cursorRef.current;
+    if (!cursor) return;
+
+    const move = (e) => {
+      gsap.to(cursor, {
+        x: e.clientX,
+        y: e.clientY,
+        duration: 0.55,
+        ease: 'power3.out',
+      });
+    };
+    window.addEventListener('mousemove', move);
+    return () => window.removeEventListener('mousemove', move);
+  }, []);
+
+  /* ---------------------- ADVANCED SCROLL REVEALS --------------------- */
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Page-load hero sequence — springy stagger
-      gsap.timeline({ defaults: { ease: 'back.out(1.6)' } })
-        .from('.hero .eyebrow', { opacity: 0, y: 16, duration: 0.6 })
-        .from('.hero-title', { opacity: 0, y: 28, duration: 0.75 }, '-=0.35')
-        .from('.hero-copy', { opacity: 0, y: 20, duration: 0.7 }, '-=0.45')
-        .from('.hero-quickcontact .chip', { opacity: 0, y: 16, stagger: 0.1, duration: 0.55 }, '-=0.4')
-        .from('.hero-monitor', { opacity: 0, scale: 0.9, duration: 0.8 }, '-=0.5');
+      /* ============= HERO SEQUENCE — cinematic curtain reveal ========= */
+      const heroTl = gsap.timeline({ defaults: { ease: 'power4.out' } });
 
-      // Buttery smooth reveal-on-scroll for every marked element
+      heroTl
+        .from('.hero .eyebrow', {
+          opacity: 0,
+          y: 30,
+          duration: 0.9,
+        })
+        .from('.hero-title .split-word', {
+          yPercent: 120,
+          rotateZ: 6,
+          opacity: 0,
+          stagger: 0.08,
+          duration: 1.1,
+          ease: 'expo.out',
+        }, '-=0.5')
+        .from('.hero-copy', {
+          opacity: 0,
+          y: 30,
+          duration: 0.9,
+        }, '-=0.8')
+        .from('.hero-quickcontact .chip', {
+          opacity: 0,
+          y: 20,
+          scale: 0.85,
+          stagger: 0.09,
+          duration: 0.7,
+          ease: 'back.out(1.7)',
+        }, '-=0.5')
+        .from('.hero-monitor', {
+          opacity: 0,
+          x: 60,
+          scale: 0.9,
+          duration: 1.1,
+          ease: 'expo.out',
+        }, '-=1');
+
+      /* ============= HERO — Parallax layered movement ================= */
+      gsap.to('.hero-monitor', {
+        y: -60,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 1,
+        },
+      });
+
+      gsap.to('.hero-copy, .hero-quickcontact', {
+        y: -40,
+        opacity: 0.4,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: 'top top',
+          end: 'bottom 30%',
+          scrub: 1,
+        },
+      });
+
+      /* ============= WORD-BY-WORD REVEALS for h2 headings ============= */
+      gsap.utils.toArray('.reveal-words').forEach((el) => {
+        const words = el.querySelectorAll('.split-word');
+        gsap.from(words, {
+          yPercent: 110,
+          rotateZ: 4,
+          opacity: 0,
+          stagger: 0.06,
+          duration: 1,
+          ease: 'expo.out',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 82%',
+            toggleActions: 'play none none reverse',
+          },
+        });
+      });
+
+      /* ============= CHAR-BY-CHAR reveals ============================= */
+      gsap.utils.toArray('.reveal-chars').forEach((el) => {
+        const chars = el.querySelectorAll('.split-char');
+        gsap.from(chars, {
+          opacity: 0,
+          y: 20,
+          rotateX: -80,
+          stagger: 0.015,
+          duration: 0.8,
+          ease: 'back.out(2)',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 85%',
+            toggleActions: 'play none none reverse',
+          },
+        });
+      });
+
+      /* ============= reveal-up — smooth pro reveal ==================== */
       gsap.utils.toArray('.reveal-up').forEach((el) => {
         gsap.to(el, {
           opacity: 1,
           y: 0,
-          duration: 0.9,
-          ease: 'power3.out',
-          scrollTrigger: { trigger: el, start: 'top 85%', toggleActions: 'play none none reverse' },
-        });
-      });
-
-      gsap.utils.toArray('.reveal-scale').forEach((el, i) => {
-        gsap.to(el, {
-          opacity: 1,
-          scale: 1,
-          duration: 0.8,
-          delay: (i % 2) * 0.08,
-          ease: 'back.out(1.5)',
+          duration: 1.1,
+          ease: 'expo.out',
           scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none reverse' },
         });
       });
 
-      // subtle parallax on the hero monitor card
-      gsap.to('.hero-monitor', {
-        y: -30,
-        ease: 'none',
-        scrollTrigger: { trigger: heroRef.current, start: 'top top', end: 'bottom top', scrub: 0.8 },
+      /* ============= reveal-scale ===================================== */
+      gsap.utils.toArray('.reveal-scale').forEach((el, i) => {
+        gsap.to(el, {
+          opacity: 1,
+          scale: 1,
+          rotateY: 0,
+          duration: 1,
+          delay: (i % 2) * 0.1,
+          ease: 'back.out(1.4)',
+          scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none reverse' },
+        });
       });
+
+      /* ============= MASK REVEAL — clip-path unveil =================== */
+      gsap.utils.toArray('.reveal-mask').forEach((el) => {
+        gsap.fromTo(
+          el,
+          { clipPath: 'inset(0 100% 0 0)' },
+          {
+            clipPath: 'inset(0 0% 0 0)',
+            duration: 1.3,
+            ease: 'expo.inOut',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 82%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      /* ============= 3D CARD TILT REVEAL (clinic cards) =============== */
+      gsap.utils.toArray('.reveal-3d').forEach((el, i) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, y: 80, rotateX: -18, transformPerspective: 900 },
+          {
+            opacity: 1,
+            y: 0,
+            rotateX: 0,
+            duration: 1.2,
+            delay: i * 0.15,
+            ease: 'expo.out',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 85%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      /* ============= STAGGERED SLIDE from left =====================  */
+      gsap.utils.toArray('.reveal-slide-l').forEach((el) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, x: -70 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 1.1,
+            ease: 'expo.out',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 85%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      gsap.utils.toArray('.reveal-slide-r').forEach((el) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, x: 70 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 1.1,
+            ease: 'expo.out',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 85%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      /* ============= REPORT STEPS staggered timeline ================== */
+      gsap.utils.toArray('.report-step').forEach((el, i) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, x: -40 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.85,
+            delay: i * 0.18,
+            ease: 'back.out(1.6)',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 88%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      /* ============= FORM FIELDS cascade reveal ======================= */
+      gsap.utils.toArray('.contact-form .field, .contact-form .submit-btn').forEach((el, i) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.75,
+            delay: i * 0.08,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: '.contact-form',
+              start: 'top 82%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      /* ============= SOCIAL burst ===================================== */
+      gsap.utils.toArray('.social-btn').forEach((el, i) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, y: 40, rotate: -20, scale: 0.4 },
+          {
+            opacity: 1,
+            y: 0,
+            rotate: 0,
+            scale: 1,
+            duration: 0.8,
+            delay: i * 0.08,
+            ease: 'back.out(1.9)',
+            scrollTrigger: {
+              trigger: '.social-row',
+              start: 'top 88%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      /* ============= MAP zoom-in reveal =============================== */
+      gsap.fromTo(
+        '.map-shell',
+        { opacity: 0, scale: 0.9, y: 40 },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          duration: 1.3,
+          ease: 'expo.out',
+          scrollTrigger: {
+            trigger: '.map-shell',
+            start: 'top 85%',
+            toggleActions: 'play none none reverse',
+          },
+        }
+      );
+
+      /* ============= SECTION background subtle parallax =============== */
+      gsap.utils.toArray('.section').forEach((sec) => {
+        gsap.fromTo(
+          sec,
+          { backgroundPositionY: '0%' },
+          {
+            backgroundPositionY: '15%',
+            ease: 'none',
+            scrollTrigger: {
+              trigger: sec,
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: true,
+            },
+          }
+        );
+      });
+
+      /* ============= EYEBROW line grow ================================ */
+      gsap.utils.toArray('.eyebrow').forEach((el) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, x: -20 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.8,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 90%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      /* ============= DROPZONE pulse in ================================ */
+      gsap.fromTo(
+        '.dropzone',
+        { opacity: 0, y: 40, scale: 0.95 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 1.1,
+          ease: 'expo.out',
+          scrollTrigger: {
+            trigger: '.dropzone',
+            start: 'top 85%',
+            toggleActions: 'play none none reverse',
+          },
+        }
+      );
+
+      /* ============= FORM ASIDE LIST items ============================ */
+      gsap.utils.toArray('.form-aside li').forEach((el, i) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, x: -30 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.7,
+            delay: i * 0.12,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: '.form-aside',
+              start: 'top 82%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      });
+
+      ScrollTrigger.refresh();
     }, rootRef);
 
     return () => ctx.revert();
+  }, []);
+
+  /* ---------------------- Magnetic hover for buttons ----------------- */
+  useEffect(() => {
+    const targets = rootRef.current?.querySelectorAll('.magnetic') || [];
+    const handlers = [];
+
+    targets.forEach((el) => {
+      const move = (e) => {
+        const rect = el.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        gsap.to(el, { x: x * 0.25, y: y * 0.25, duration: 0.5, ease: 'power3.out' });
+      };
+      const leave = () => gsap.to(el, { x: 0, y: 0, duration: 0.7, ease: 'elastic.out(1, 0.5)' });
+      el.addEventListener('mousemove', move);
+      el.addEventListener('mouseleave', leave);
+      handlers.push({ el, move, leave });
+    });
+
+    return () => {
+      handlers.forEach(({ el, move, leave }) => {
+        el.removeEventListener('mousemove', move);
+        el.removeEventListener('mouseleave', leave);
+      });
+    };
   }, []);
 
   /* ------------------------------------------------------ form helpers - */
@@ -263,7 +690,6 @@ export default function ContactUs() {
     setErrors({});
   };
 
-  /* --------------------------------------------------- dropzone helpers - */
   const addFiles = useCallback((list) => {
     const incoming = Array.from(list).map((f) => ({ name: f.name, size: f.size }));
     setFiles((prev) => [...prev, ...incoming]);
@@ -293,13 +719,20 @@ export default function ContactUs() {
 
   return (
     <div className="aureal-contact" ref={rootRef}>
+      <ScrollProgress />
+      <div className="cursor-glow" ref={cursorRef} aria-hidden="true" />
+
       {/* ============================================================ HERO */}
       <section className="hero" ref={heroRef}>
+        <div className="hero-bg-grid" aria-hidden="true" />
+        <div className="hero-bg-glow" aria-hidden="true" />
+
         <div className="section-inner hero-grid">
           <div>
-            <span className="eyebrow">Get in touch</span>
+            
             <h1 className="hero-title">
-              Precision care, <span>one conversation</span> away.
+              {splitText('Precision care')}
+              
             </h1>
             <p className="hero-copy">
               Aureal Healthcare is a progressive, tech-enabled clinical ecosystem bringing precision
@@ -308,13 +741,13 @@ export default function ContactUs() {
               suits you best.
             </p>
             <div className="hero-quickcontact">
-              <a className="chip" href={`tel:${CLINICS.pondicherry.phone.replace(/\s/g, '')}`}>
+              <a className="chip magnetic" href={`tel:${CLINICS.pondicherry.phone.replace(/\s/g, '')}`}>
                 <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M6 4h3l1.5 4L8 10a12 12 0 0 0 6 6l2-2.5 4 1.5v3a2 2 0 0 1-2.2 2C10 19.5 4.5 14 4 6.2A2 2 0 0 1 6 4Z" />
                 </svg>
                 {CLINICS.pondicherry.phone}
               </a>
-              <a className="chip" href="mailto:care@aurealhealthcare.com">
+              <a className="chip magnetic" href="mailto:care@aurealhealthcare.com">
                 <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
                   <path d="M4 7l8 6 8-6" />
@@ -347,9 +780,9 @@ export default function ContactUs() {
               />
             </svg>
             <div className="hero-monitor-stats">
-              <div><strong>2</strong><span>Care Centres</span></div>
-              <div><strong>100%</strong><span>Specialist-led</span></div>
-              <div><strong>24h</strong><span>Report Turnaround</span></div>
+              <div><Counter value={2} /><span>Care Centres</span></div>
+              <div><Counter value={100} suffix="%" /><span>Specialist-led</span></div>
+              <div><Counter value={24} suffix="h" /><span>Report Turnaround</span></div>
             </div>
           </div>
         </div>
@@ -360,10 +793,12 @@ export default function ContactUs() {
       {/* ========================================================= CLINICS */}
       <section className="clinics section">
         <div className="section-inner">
-          <div className="section-head reveal-up">
+          <div className="section-head">
             <span className="eyebrow">Our care centres</span>
-            <h2>Two states, one standard of care.</h2>
-            <p>
+            <h2 className="reveal-words">
+              {splitText('Two states, one standard of care.')}
+            </h2>
+            <p className="reveal-up">
               Whether you're closer to the coast in Puducherry or our Kerala centre, every location
               runs on the same specialist-led clinical framework.
             </p>
@@ -371,7 +806,7 @@ export default function ContactUs() {
 
           <div className="clinic-grid">
             {Object.entries(CLINICS).map(([key, c]) => (
-              <div key={key} className={`clinic-card reveal-scale${activeLocation === key ? ' is-active' : ''}`}>
+              <div key={key} className={`clinic-card reveal-3d${activeLocation === key ? ' is-active' : ''}`}>
                 <span className="clinic-tag">{c.tag}</span>
                 <h3>{c.name}</h3>
                 <address>{c.address}</address>
@@ -391,7 +826,7 @@ export default function ContactUs() {
                   </a>
                 </div>
                 <button
-                  className={`clinic-select-btn${activeLocation === key ? ' is-active' : ''}`}
+                  className={`clinic-select-btn magnetic${activeLocation === key ? ' is-active' : ''}`}
                   onClick={() => setActiveLocation(key)}
                 >
                   {activeLocation === key ? 'Showing on map' : 'View on map'}
@@ -400,7 +835,7 @@ export default function ContactUs() {
             ))}
           </div>
 
-          <div className="map-shell reveal-up">
+          <div className="map-shell">
             <span className="map-badge">{clinic.name}</span>
             <iframe
               title={`Map — ${clinic.name}`}
@@ -417,10 +852,12 @@ export default function ContactUs() {
       {/* =========================================================== FORM */}
       <section className="contact-section section">
         <div className="section-inner form-grid">
-          <div className="form-aside reveal-up">
+          <div className="form-aside reveal-slide-l">
             <span className="eyebrow">Talk to us</span>
-            <h3 style={{ marginTop: 14 }}>Tell us what's going on</h3>
-            <p>
+            <h3 className="reveal-words" style={{ marginTop: 14 }}>
+              {splitText("Tell us what's going on")}
+            </h3>
+            <p className="reveal-up">
               Share a few details and our care coordination team will match you with the right
               specialist — no long queues, no guesswork.
             </p>
@@ -446,7 +883,7 @@ export default function ContactUs() {
             </ul>
           </div>
 
-          <form className="contact-form reveal-up" onSubmit={handleSubmit} noValidate>
+          <form className="contact-form reveal-slide-r" onSubmit={handleSubmit} noValidate>
             <div className="form-row-2">
               <div className={`field${errors.name ? ' has-error' : ''}`}>
                 <label htmlFor="name">Full name</label>
@@ -472,7 +909,7 @@ export default function ContactUs() {
               {errors.problem && <span className="field-error">{errors.problem}</span>}
             </div>
 
-            <button type="submit" className="submit-btn">
+            <button type="submit" className="submit-btn magnetic">
               Send message
               <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6" />
@@ -487,10 +924,12 @@ export default function ContactUs() {
       {/* ================================================= MEDICAL REPORT */}
       <section className="report-section section">
         <div className="section-inner report-grid">
-          <div className="reveal-up">
+          <div className="reveal-slide-l">
             <span className="eyebrow">Drop &amp; consult</span>
-            <h2>Drop your medical report, get doctor advice.</h2>
-            <p>
+            <h2 className="reveal-words">
+              {splitText('Drop your medical report, get doctor advice.')}
+            </h2>
+            <p className="reveal-up">
               Upload a recent lab report, scan, or prescription and one of our specialists will
               review it against our clinical frameworks — no waiting room required.
             </p>
@@ -510,7 +949,7 @@ export default function ContactUs() {
             </div>
           </div>
 
-          <form className="reveal-scale" onSubmit={submitReport}>
+          <form className="reveal-slide-r" onSubmit={submitReport}>
             <div
               className={`dropzone${isDragging ? ' is-dragging' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -525,7 +964,7 @@ export default function ContactUs() {
               </div>
               <h4>Drag &amp; drop your report</h4>
               <p>or</p>
-              <label className="dropzone-browse" htmlFor="report-upload">Browse files</label>
+              <label className="dropzone-browse magnetic" htmlFor="report-upload">Browse files</label>
               <input
                 id="report-upload"
                 type="file"
@@ -554,7 +993,7 @@ export default function ContactUs() {
               Files are transmitted securely and reviewed only by licensed specialists.
             </p>
 
-            <button type="submit" className="report-submit" disabled={files.length === 0}>
+            <button type="submit" className="report-submit magnetic" disabled={files.length === 0}>
               Submit for review
             </button>
           </form>
@@ -566,13 +1005,15 @@ export default function ContactUs() {
       {/* =========================================================== SOCIAL */}
       <section className="social-section section">
         <div className="section-inner">
-          <div className="section-head reveal-up">
-            <span className="eyebrow">Stay connected</span>
-            <h2>Follow the work behind the care.</h2>
+          <div className="section-head" style={{ margin: '0 auto 40px', textAlign: 'center' }}>
+            <span className="eyebrow" style={{ justifyContent: 'center' }}>Stay connected</span>
+            <h2 className="reveal-words">
+              {splitText('Follow the work behind the care.')}
+            </h2>
           </div>
-          <div className="social-row reveal-scale">
+          <div className="social-row">
             {SOCIALS.map((s) => (
-              <a key={s.name} className="social-btn" href={s.href} target="_blank" rel="noreferrer" aria-label={s.name}>
+              <a key={s.name} className="social-btn magnetic" href={s.href} target="_blank" rel="noreferrer" aria-label={s.name}>
                 {s.icon}
               </a>
             ))}

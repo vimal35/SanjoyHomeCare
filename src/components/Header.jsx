@@ -22,11 +22,20 @@ const navItems = [
 
 const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -60,14 +69,25 @@ const Header = () => {
 
   return (
     <>
-      <header className="site-header">
+      <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
+        {/* Top accent bar */}
+        <div className="header-top-bar">
+          <div className="header-top-inner">
+            <span className="top-bar-text">Trusted Clinical Care — Serving you since 2010</span>
+            <div className="top-bar-links">
+              <a href="tel:+18001234567" className="top-bar-link">📞 +1 800 123 4567</a>
+              <span className="top-bar-divider" />
+              <a href="mailto:care@aureal.com" className="top-bar-link">✉ care@aureal.com</a>
+            </div>
+          </div>
+        </div>
+
         <div className="header-container">
           {/* Logo */}
           <Link to="/" className="site-brand" aria-label="Aureal home">
             <span className="brand-mark">
-              <HeartPulse size={23} strokeWidth={1.9} />
+              <HeartPulse size={26} strokeWidth={1.8} />
             </span>
-
             <span className="brand-content">
               <span className="brand-name">Aureal</span>
               <span className="brand-tagline">Clinical Care</span>
@@ -84,6 +104,7 @@ const Header = () => {
                 className={getNavClass}
               >
                 {item.label}
+                <span className="nav-link-underline" />
               </NavLink>
             ))}
           </nav>
@@ -96,17 +117,15 @@ const Header = () => {
               aria-label="Book an appointment"
             >
               <span className="appointment-icon">
-                <CalendarDays size={17} strokeWidth={2} />
+                <CalendarDays size={16} strokeWidth={2} />
               </span>
-
               <span className="appointment-label">
                 <span className="appointment-full">Book Appointment</span>
                 <span className="appointment-short">Book</span>
               </span>
-
               <ArrowUpRight
                 className="appointment-arrow"
-                size={17}
+                size={16}
                 strokeWidth={2}
               />
             </Link>
@@ -114,17 +133,15 @@ const Header = () => {
             {/* Mobile Menu Button */}
             <button
               type="button"
-              className="menu-toggle"
+              className={`menu-toggle${menuOpen ? " is-open" : ""}`}
               onClick={() => setMenuOpen((previous) => !previous)}
               aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={menuOpen}
               aria-controls="mobile-navigation"
             >
-              {menuOpen ? (
-                <X size={23} strokeWidth={2} />
-              ) : (
-                <Menu size={23} strokeWidth={2} />
-              )}
+              <span className="toggle-bar top" />
+              <span className="toggle-bar middle" />
+              <span className="toggle-bar bottom" />
             </button>
           </div>
         </div>
@@ -144,6 +161,9 @@ const Header = () => {
         />
 
         <aside className="mobile-panel" aria-label="Mobile navigation panel">
+          {/* Panel glow orb */}
+          <div className="panel-glow" />
+
           <div className="mobile-panel-header">
             <Link
               to="/"
@@ -152,9 +172,8 @@ const Header = () => {
               aria-label="Aureal home"
             >
               <span className="brand-mark">
-                <HeartPulse size={21} strokeWidth={1.9} />
+                <HeartPulse size={22} strokeWidth={1.8} />
               </span>
-
               <span className="brand-content">
                 <span className="brand-name">Aureal</span>
                 <span className="brand-tagline">Clinical Care</span>
@@ -167,38 +186,49 @@ const Header = () => {
               onClick={closeMenu}
               aria-label="Close navigation menu"
             >
-              <X size={21} strokeWidth={2} />
+              <X size={20} strokeWidth={2} />
             </button>
           </div>
 
-          <div className="mobile-menu-label">Navigation</div>
+          <div className="mobile-menu-label">
+            <span>Navigation</span>
+          </div>
 
           <nav className="mobile-navigation-links">
-            {navItems.map((item) => (
+            {navItems.map((item, index) => (
               <NavLink
                 key={item.path}
                 to={item.path}
                 end={item.path === "/"}
                 className={getMobileNavClass}
                 onClick={closeMenu}
+                style={{ animationDelay: `${index * 50}ms` }}
               >
-                <span>{item.label}</span>
-                <ChevronRight size={18} strokeWidth={1.8} />
+                <span className="mobile-nav-text">{item.label}</span>
+                <ChevronRight className="mobile-nav-arrow" size={17} strokeWidth={2} />
               </NavLink>
             ))}
           </nav>
 
           <div className="mobile-panel-footer">
-            <p>Need trusted care at home?</p>
+            <div className="footer-card">
+              <div className="footer-card-icon">
+                <HeartPulse size={20} strokeWidth={1.8} />
+              </div>
+              <div className="footer-card-content">
+                <p className="footer-card-title">Need trusted care at home?</p>
+                <p className="footer-card-sub">Our team is ready to help you.</p>
+              </div>
+            </div>
 
             <Link
               to="/Appointment"
               className="mobile-appointment-button"
               onClick={closeMenu}
             >
-              <CalendarDays size={18} strokeWidth={2} />
-              Schedule an Appointment
-              <ArrowUpRight size={17} strokeWidth={2} />
+              <CalendarDays size={17} strokeWidth={2} />
+              <span>Schedule an Appointment</span>
+              <ArrowUpRight size={16} strokeWidth={2} />
             </Link>
           </div>
         </aside>

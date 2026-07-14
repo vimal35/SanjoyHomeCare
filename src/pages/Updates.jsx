@@ -1,4 +1,3 @@
-// Events.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -151,6 +150,8 @@ const ListIcon = () => (
 
 const Events = () => {
   const pageRef = useRef(null);
+  const heroRef = useRef(null);
+  const sectionRef = useRef(null);
   const [view, setView] = useState("list");
   const [filter, setFilter] = useState("All Events");
 
@@ -169,73 +170,147 @@ const Events = () => {
     if (reduceMotion) return;
 
     const ctx = gsap.context(() => {
-      gsap.from(".events-hero-badge", {
-        y: 22,
-        opacity: 0,
-        duration: 0.7,
-        ease: "power3.out",
-      });
-
-      gsap.from(".events-hero-title", {
-        y: 40,
-        opacity: 0,
-        duration: 0.85,
-        delay: 0.1,
-        ease: "power3.out",
-      });
-
-      gsap.from(".events-hero-text", {
-        y: 30,
-        opacity: 0,
-        duration: 0.8,
-        delay: 0.2,
-        ease: "power3.out",
-      });
-
-      gsap.from(".events-toolbar", {
-        y: 26,
-        opacity: 0,
-        duration: 0.8,
-        delay: 0.3,
-        ease: "power3.out",
-      });
-    }, pageRef);
-
-    return () => ctx.revert();
-  }, []);
-
-  useEffect(() => {
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-
-    if (reduceMotion) return;
-
-    const ctx = gsap.context(() => {
-      gsap.from(".event-card", {
+      // Scrub-based hero parallax
+      gsap.to(".events-hero-badge", {
         scrollTrigger: {
-          trigger: ".events-list",
-          start: "top 85%",
+          trigger: heroRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 0.8
         },
-        y: 44,
-        opacity: 0,
-        duration: 0.75,
-        stagger: 0.1,
-        ease: "power3.out",
+        y: -100,
+        opacity: 0.3
       });
-    }, pageRef);
 
-    ScrollTrigger.refresh();
+      gsap.to(".events-hero-title", {
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 0.5
+        },
+        y: -150,
+        scale: 0.95,
+        filter: "blur(5px)"
+      });
+
+      gsap.to(".events-hero-text", {
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 1
+        },
+        y: -80,
+        opacity: 0
+      });
+
+      gsap.to(".events-toolbar", {
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: "center top",
+          end: "bottom top",
+          scrub: 0.8
+        },
+        y: -50,
+        scale: 0.98
+      });
+
+      // Scrub-based card reveals with pinning
+      const cards = gsap.utils.toArray(".event-card");
+      
+      cards.forEach((card, i) => {
+        const image = card.querySelector(".event-image");
+        const content = card.querySelector(".event-body");
+        const title = card.querySelector("h3");
+        
+        // Create a timeline for each card
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: card,
+            start: "top 85%",
+            end: "top 35%",
+            scrub: 0.5,
+            toggleActions: "play none none reverse"
+          }
+        });
+
+        tl.fromTo(card, 
+          { y: 100, opacity: 0.5, scale: 0.95 },
+          { y: 0, opacity: 1, scale: 1, duration: 1 }
+        )
+        .fromTo(image,
+          { clipPath: "inset(100% 0 0 0)" },
+          { clipPath: "inset(0% 0 0 0)", duration: 1 },
+          0
+        )
+        .fromTo(content,
+          { x: 50, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.8 },
+          0.2
+        )
+        .fromTo(title,
+          { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.6 },
+          0.4
+        );
+
+        // Parallax within card on scroll
+        gsap.to(image.querySelector("img"), {
+          scrollTrigger: {
+            trigger: card,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 1
+          },
+          y: 50,
+          scale: 1.1
+        });
+
+        // Side accent animation
+        gsap.to(card.querySelector(".card-accent"), {
+          scrollTrigger: {
+            trigger: card,
+            start: "top 80%",
+            end: "center center",
+            scrub: 0.5
+          },
+          scaleY: 1
+        });
+      });
+
+      // Horizontal scroll progression for stats
+      gsap.fromTo(".event-stats", 
+        { x: -20, opacity: 0.8 },
+        {
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: "top center",
+            end: "bottom center",
+            scrub: 0.5
+          },
+          x: 0,
+          opacity: 1
+        }
+      );
+
+    }, pageRef);
 
     return () => ctx.revert();
   }, [view, filter]);
 
   return (
     <main className="events-page" ref={pageRef}>
-      <section className="events-hero">
+      <section className="events-hero" ref={heroRef}>
+        <div className="hero-bg-elements">
+          <div className="hero-glow hero-glow-1"></div>
+          <div className="hero-glow hero-glow-2"></div>
+          <div className="hero-grid-pattern"></div>
+        </div>
+        
         <div className="events-container">
           <div className="events-hero-badge">
-            <span></span>
+            <span className="pulse-dot"></span>
             Hospital Sector Calendar
           </div>
 
@@ -292,13 +367,14 @@ const Events = () => {
         </div>
       </section>
 
-      <section className="events-section">
+      <section className="events-section" ref={sectionRef}>
         <div className="events-container">
           <div className={`events-list ${view === "grid" ? "is-grid" : ""}`}>
             {filtered.map((event) => (
               <article className="event-card" key={event.id}>
+                <div className="card-accent"></div>
                 <div className="event-image">
-                  <img src={event.image} alt={event.title} />
+                  <img src={event.image} alt={event.title} loading="lazy" />
                   <span className="event-category">{event.category}</span>
                 </div>
 
